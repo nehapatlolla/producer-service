@@ -1,35 +1,13 @@
-import {
-  IsString,
-  IsEmail,
-  IsDateString,
-  IsOptional,
-  IsNotEmpty,
-} from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, PartialType } from '@nestjs/swagger';
+import { CreateUserDto } from './create-user.dto';
+import { IsString } from 'class-validator';
+import { UpdateDateColumn } from 'typeorm';
 
-export class UpdateUserDto {
-  @ApiProperty()
+export class UpdateUserDto extends PartialType(CreateUserDto) {
+  @ApiProperty({ description: 'ID of the user to update', example: '1234' })
   @IsString()
-  @IsNotEmpty()
-  id: string;
+  readonly id: string;
 
-  @ApiProperty()
-  @IsOptional()
-  @IsString()
-  firstName?: string;
-
-  @ApiProperty()
-  @IsOptional()
-  @IsString()
-  lastName?: string;
-
-  @ApiProperty()
-  @IsOptional()
-  @IsEmail()
-  email?: string;
-
-  @ApiProperty()
-  @IsOptional()
-  @IsDateString()
-  dob?: string;
+  @UpdateDateColumn()
+  updatedAt: Date;
 }

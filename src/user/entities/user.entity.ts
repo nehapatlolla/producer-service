@@ -1,34 +1,34 @@
-import {
-  Entity,
-  Column,
-  PrimaryGeneratedColumn,
-  CreateDateColumn,
-  UpdateDateColumn,
-} from 'typeorm';
+// import {
+//   Entity,
+//   Column,
+//   PrimaryGeneratedColumn,
+//   CreateDateColumn,
+//   UpdateDateColumn,
+// } from 'typeorm';
 
-@Entity()
-export class User {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+// @Entity()
+// export class User {
+//   @PrimaryGeneratedColumn('uuid')
+//   id: string;
 
-  @Column()
-  firstName: string;
+//   @Column()
+//   firstName: string;
 
-  @Column()
-  lastName: string;
+//   @Column()
+//   lastName: string;
 
-  @Column({ unique: true })
-  email: string;
+//   @Column({ unique: true })
+//   email: string;
 
-  @Column({ type: 'date' })
-  dob: string;
+//   @Column({ type: 'date' })
+//   dob: string;
 
-  @Column({ type: 'enum', enum: ['created', 'updated', 'blocked'] })
-  status: string;
+//   @Column({ type: 'enum', enum: ['created', 'updated', 'blocked'] })
+//   status: string;
 
-  @CreateDateColumn()
-  createdAt: Date;
+//   @CreateDateColumn()
+//   createdAt: Date;
 
-  @UpdateDateColumn()
-  updatedAt: Date;
-}
+//   @UpdateDateColumn()
+//   updatedAt: Date;
+// }
