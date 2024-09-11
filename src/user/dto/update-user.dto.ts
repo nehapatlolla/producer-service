@@ -1,12 +1,58 @@
-import { ApiProperty, PartialType } from '@nestjs/swagger';
-import { CreateUserDto } from './create-user.dto';
-import { IsString } from 'class-validator';
+import {
+  IsString,
+  IsEmail,
+  IsEnum,
+  IsOptional,
+  IsDateString,
+} from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
 import { UpdateDateColumn } from 'typeorm';
 
-export class UpdateUserDto extends PartialType(CreateUserDto) {
-  @ApiProperty({ description: 'ID of the user to update', example: '1234' })
+export class UpdateUserDto {
+  @ApiProperty({
+    description: 'First name of the user',
+    example: 'John',
+    required: false,
+  })
   @IsString()
-  readonly id: string;
+  @IsOptional()
+  firstName?: string;
+
+  @ApiProperty({
+    description: 'Last name of the user',
+    example: 'Doe',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  lastName?: string;
+
+  @ApiProperty({
+    description: 'Email of the user',
+    example: 'john.doe@example.com',
+    required: false,
+  })
+  @IsEmail()
+  @IsOptional()
+  email?: string;
+
+  @ApiProperty({
+    description: 'Date of birth of the user',
+    example: '1990-01-01',
+    required: false,
+  })
+  @IsOptional()
+  @IsDateString()
+  dob?: string;
+
+  @ApiProperty({
+    description: 'Status of the user',
+    example: 'updated',
+    required: false,
+  })
+  @IsEnum(['created', 'updated', 'blocked'])
+  @IsOptional()
+  status?: string;
 
   @UpdateDateColumn()
   updatedAt: Date;

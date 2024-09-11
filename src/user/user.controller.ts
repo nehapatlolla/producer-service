@@ -4,12 +4,15 @@ import {
   Controller,
   Get,
   NotFoundException,
+  Param,
   Post,
+  Put,
   Query,
 } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UserService } from './user.service';
 import { CheckUserStatusDto } from './dto/check-user-status.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @Controller('users')
 export class UserController {
@@ -44,5 +47,12 @@ export class UserController {
       }
       throw new BadRequestException('Failed to retrieve user status');
     }
+  }
+  @Put(':id')
+  async updateUser(
+    @Param('id') id: string,
+    @Body() UpdateUserDto: UpdateUserDto,
+  ) {
+    await this.userService.updateUser(id, UpdateUserDto);
   }
 }

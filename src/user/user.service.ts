@@ -13,6 +13,7 @@ import {
   QueryCommand,
   QueryCommandInput,
 } from '@aws-sdk/client-dynamodb';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()
 export class UserService {
@@ -26,7 +27,6 @@ export class UserService {
   constructor() {
     this.sqsClient = new SQSClient({
       region: process.env.AWS_REGION,
-      // endpoint: process.env.SQS_ENDPOINT,
     });
     this.queueUrl = process.env.SQS_QUEUE_URL;
     this.tableName = process.env.TABLE_NAME;
@@ -101,6 +101,28 @@ export class UserService {
     } catch (error) {
       this.logger.error('Error checking user status:', error);
       throw new BadRequestException('Failed to retrieve user status');
+    }
+  }
+
+  async updateUser(id: string, UpdateUserDto: UpdateUserDto) {
+    const messageBody = {
+      operation: 'update',
+      user: {
+        id,
+        ...UpdateUserDto,
+      },
+    };
+    try {
+      const command = new SendMessageCommand({
+        QueueUrl: this.queueUrl,
+        MessageBody: JSON.stringify(messageBody),
+      });
+      await this.sqsClient.send(command);
+      this.logger.log('Update Message sent to SQS');
+      return { messgae: 'User update request sent' };
+    } catch (error) {
+      this.logger.error('Error sending message to SQS queue:', error);
+      throw new BadRequestException('Failed to send message to queue');
     }
   }
 }
