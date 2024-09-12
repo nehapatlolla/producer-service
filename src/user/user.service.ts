@@ -10,6 +10,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { CheckUserStatusDto } from './dto/check-user-status.dto';
 import {
   DynamoDBClient,
+  GetItemCommand,
+  GetItemCommandInput,
   QueryCommand,
   QueryCommandInput,
 } from '@aws-sdk/client-dynamodb';
@@ -123,6 +125,56 @@ export class UserService {
     } catch (error) {
       this.logger.error('Error sending message to SQS queue:', error);
       throw new BadRequestException('Failed to send message to queue');
+    }
+  }
+
+  async getUserDetailsById(userId: string) {
+    if (!userId) {
+      throw new BadRequestException('Id must be provided');
+    }
+    try {
+      const commandInput: GetItemCommandInput = {
+        TableName: this.tableName,
+        Key: { id: { S: userId } },
+      };
+      const command = new GetItemCommand(commandInput);
+      const response = await this.dynamoDBClient.send(command);
+
+      // Log the entire response for debugging
+      this.logger.debug('DynamoDB Response:', JSON.stringify(response));
+
+      // Check if the user was found
+      if (!response.Item) {
+        throw new NotFoundException(`User with ID ${userId} not found.`);
+      }
+
+      // Extract user details from response
+      const item = response.Item;
+      const user = {
+        id: item.id?.S,
+        firstName: item.firstName?.S,
+        lastName: item.lastName?.S,
+        email: item.email?.S,
+        dob: item.dob?.S,
+        status: item.status?.S,
+      };
+      // Log extracted user data
+      this.logger.debug('Extracted User:', JSON.stringify(user));
+
+      if (
+        !user.id ||
+        !user.firstName ||
+        !user.lastName ||
+        !user.email ||
+        !user.dob ||
+        !user.status
+      ) {
+        throw new BadRequestException('User data is incomplete.');
+      }
+      return user;
+    } catch (error) {
+      this.logger.log('Error while retrieving the user through id', error);
+      throw new BadRequestException('Failed to retrieve the user');
     }
   }
 }
