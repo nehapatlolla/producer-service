@@ -7,18 +7,18 @@ import {
 import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
 import { CreateUserDto } from './dto/create-user.dto';
 import { v4 as uuidv4 } from 'uuid';
-import { CheckUserStatusDto } from './dto/check-user-status.dto';
+
 import {
   DynamoDBClient,
   GetItemCommand,
   GetItemCommandInput,
-  QueryCommand,
-  QueryCommandInput,
 } from '@aws-sdk/client-dynamodb';
 import { UpdateUserDto } from './dto/update-user.dto';
+import axios from 'axios';
 
 @Injectable()
 export class UserService {
+  private readonly consumerServiceUrl = 'http://localhost:3002';
   private readonly sqsClient: SQSClient;
   private readonly dynamoDBClient: DynamoDBClient;
   private readonly queueUrl: string;
@@ -68,44 +68,6 @@ export class UserService {
     }
   }
 
-  async checkUserStatus(CheckUserStatusDto: CheckUserStatusDto) {
-    const { email, dob } = CheckUserStatusDto;
-    if (!email || !dob) {
-      throw new BadRequestException(
-        'Both email and date of birth must be provided.',
-      );
-    }
-    try {
-      const commandInput: QueryCommandInput = {
-        TableName: this.tableName,
-        IndexName: this.IndexName,
-        KeyConditionExpression: 'email = :email AND dob = :dob',
-
-        ExpressionAttributeValues: {
-          ':email': { S: email },
-          ':dob': { S: dob },
-        },
-      };
-      this.logger.debug('Query Command Input:', commandInput);
-      const command = new QueryCommand(commandInput);
-      const response = await this.dynamoDBClient.send(command);
-      this.logger.debug('Query Command Response:', response);
-      if (response.Items && response.Items.length > 0) {
-        const user = response.Items[0];
-        const id = user.id.S;
-        const status = user.status.S;
-        return { id, status };
-      } else {
-        throw new NotFoundException(
-          `User with email ${email} and DOB ${dob} not found`,
-        );
-      }
-    } catch (error) {
-      this.logger.error('Error checking user status:', error);
-      throw new BadRequestException('Failed to retrieve user status');
-    }
-  }
-
   async updateUser(id: string, UpdateUserDto: UpdateUserDto) {
     const messageBody = {
       operation: 'update',
@@ -140,15 +102,12 @@ export class UserService {
       const command = new GetItemCommand(commandInput);
       const response = await this.dynamoDBClient.send(command);
 
-      // Log the entire response for debugging
       this.logger.debug('DynamoDB Response:', JSON.stringify(response));
 
-      // Check if the user was found
       if (!response.Item) {
         throw new NotFoundException(`User with ID ${userId} not found.`);
       }
 
-      // Extract user details from response
       const item = response.Item;
       const user = {
         id: item.id?.S,
@@ -175,6 +134,19 @@ export class UserService {
     } catch (error) {
       this.logger.log('Error while retrieving the user through id', error);
       throw new BadRequestException('Failed to retrieve the user');
+    }
+  }
+  async checkUserStatus(checkUserStatusDto: { email: string; dob: string }) {
+    try {
+      const response = await axios.post(
+        // I am making a HTTP request to the consumer service
+        `${this.consumerServiceUrl}/check-status`,
+        checkUserStatusDto,
+      );
+      return response.data;
+    } catch (error) {
+      this.logger.error('Error checking user status:', error);
+      throw new BadRequestException('Failed to check user status');
     }
   }
 }

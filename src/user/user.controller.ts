@@ -3,11 +3,9 @@ import {
   Body,
   Controller,
   Get,
-  NotFoundException,
   Param,
   Post,
   Put,
-  Query,
 } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UserService } from './user.service';
@@ -29,27 +27,27 @@ export class UserController {
       throw new BadRequestException('Failed to create user');
     }
   }
-  @Get('status')
-  async checkUserStatus(@Query() query: CheckUserStatusDto) {
-    try {
-      // Validate input
-      if (!query.email || !query.dob) {
-        throw new BadRequestException(
-          'Both email and date of birth must be provided.',
-        );
-      }
+  // @Get('status')
+  // async checkUserStatus(@Query() query: CheckUserStatusDto) {
+  //   try {
+  //     // Validate input
+  //     if (!query.email || !query.dob) {
+  //       throw new BadRequestException(
+  //         'Both email and date of birth must be provided.',
+  //       );
+  //     }
 
-      // Call the service method
-      const result = await this.userService.checkUserStatus(query);
+  //     // Call the service method
+  //     const result = await this.userService.checkUserStatus(query);
 
-      return result;
-    } catch (error) {
-      if (error instanceof NotFoundException) {
-        throw new NotFoundException(error.message);
-      }
-      throw new BadRequestException('Failed to retrieve user status');
-    }
-  }
+  //     return result;
+  //   } catch (error) {
+  //     if (error instanceof NotFoundException) {
+  //       throw new NotFoundException(error.message);
+  //     }
+  //     throw new BadRequestException('Failed to retrieve user status');
+  //   }
+  // }
   @Put(':id')
   async updateUser(
     @Param('id') id: string,
@@ -87,4 +85,14 @@ export class UserController {
     //   throw new BadRequestException(error.message);
     // }
   }
+  @Post('check-status')
+  async checkUserStatus(@Body() checkUserStatusDto: CheckUserStatusDto) {
+    try {
+      const result = await this.userService.checkUserStatus(checkUserStatusDto);
+      return result;
+    } catch (error) {
+      throw error;
+    }
+  }
 }
+// curl -X POST http://http://localhost:3002/user/check-status -H "Content-Type: application/json" -d '{"email": "string@gmail.com", "dob": "2024-08-09"}'
