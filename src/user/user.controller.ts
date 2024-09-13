@@ -11,9 +11,11 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UserService } from './user.service';
 import { CheckUserStatusDto } from './dto/check-user-status.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 
 @Controller('users')
 export class UserController {
+  logger: any;
   constructor(private readonly userService: UserService) {}
 
   @Post('create-User')
@@ -27,6 +29,18 @@ export class UserController {
   }
 
   @Put(':id')
+  @ApiOperation({ summary: 'Update user details' })
+  @ApiResponse({
+    status: 200,
+    description: 'User details successfully updated',
+    schema: {
+      example: { message: 'Update request sent to queue' },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Failed to send message to queue',
+  })
   async updateUser(
     @Param('id') id: string,
     @Body() UpdateUserDto: UpdateUserDto,
@@ -34,23 +48,6 @@ export class UserController {
     await this.userService.updateUser(id, UpdateUserDto);
   }
 
-  //@Get(':id')
-  // @ApiOperation({ summary: 'Get user details by ID' })
-  // @ApiParam({
-  //   name: 'id',
-  //   description: 'The unique identifier of the user',
-  //   example: '1',
-  // })
-  // @ApiResponse({
-  //   status: 200,
-  //   description: 'User details successfully retrieved',
-  //   type: UserDetailsDto,
-  // })
-  // async getUserDetailsById(@Param('id') id: string): Promise<UserDetailsDto> {
-  //   const userDetails = await this.userService.getUserDetailsById(id);
-
-  //   return userDetails;
-  // }
   @Post('check-status')
   async checkUserStatus(@Body() checkUserStatusDto: CheckUserStatusDto) {
     try {
@@ -65,5 +62,25 @@ export class UserController {
   async getgetUserDetailsById(@Param('id') id: string) {
     const result = await this.userService.getUserDetailsById(id);
     return result;
+  }
+
+  @Post('block/:id')
+  @ApiOperation({ summary: 'Block a user by ID (Admin only)' })
+  @ApiResponse({
+    status: 200,
+    description: 'User successfully blocked',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Failed to block user',
+  })
+  async blockUser(@Param('id') id: string) {
+    try {
+      const result = await this.userService.blockUser(id);
+      return result;
+    } catch (error) {
+      this.logger.error('Error in blockUser endpoint:', error);
+      throw error;
+    }
   }
 }

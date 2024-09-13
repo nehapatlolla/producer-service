@@ -3,7 +3,7 @@ import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
 import { CreateUserDto } from './dto/create-user.dto';
 import { v4 as uuidv4 } from 'uuid';
 import { UpdateUserDto } from './dto/update-user.dto';
-import axios from 'axios';
+import axios, { AxiosResponse } from 'axios';
 
 @Injectable()
 export class UserService {
@@ -11,8 +11,7 @@ export class UserService {
   private readonly sqsClient: SQSClient;
 
   private readonly queueUrl: string;
-  private readonly tableName: string;
-  private readonly IndexName: string;
+
   private readonly logger = new Logger(UserService.name);
 
   constructor() {
@@ -20,12 +19,8 @@ export class UserService {
       region: process.env.AWS_REGION,
     });
     this.queueUrl = process.env.SQS_QUEUE_URL;
-    this.tableName = process.env.TABLE_NAME;
-    this.IndexName = process.env.INDEX_NAME;
+
     this.consumerServiceUrl = process.env.CONSUMR_SERVICE_URL;
-    // this.dynamoDBClient = new DynamoDBClient({
-    //   region: process.env.AWS_REGION,
-    // });
   }
 
   async createUser(createUserDto: CreateUserDto) {
@@ -79,6 +74,19 @@ export class UserService {
       throw new BadRequestException('Failed to send message to queue');
     }
   }
+
+  async blockUser(id: string): Promise<AxiosResponse<any>> {
+    try {
+      const response = await axios.post(
+        `${this.consumerServiceUrl}/check-status/block/${id}`,
+      );
+      return response.data;
+    } catch (error) {
+      this.logger.error('Error sending block request:', error);
+      throw new BadRequestException('Failed to block user');
+    }
+  }
+
   async getUserDetailsById(userId: string) {
     try {
       const response = await axios.get(
@@ -91,52 +99,6 @@ export class UserService {
     }
   }
 
-  // async getUserDetailsById(userId: string) {
-  //   if (!userId) {
-  //     throw new BadRequestException('Id must be provided');
-  //   }
-  //   try {
-  //     const commandInput: GetItemCommandInput = {
-  //       TableName: this.tableName,
-  //       Key: { id: { S: userId } },
-  //     };
-  //     const command = new GetItemCommand(commandInput);
-  //     const response = await this.dynamoDBClient.send(command);
-
-  //     this.logger.debug('DynamoDB Response:', JSON.stringify(response));
-
-  //     if (!response.Item) {
-  //       throw new NotFoundException(`User with ID ${userId} not found.`);
-  //     }
-
-  //     const item = response.Item;
-  //     const user = {
-  //       id: item.id?.S,
-  //       firstName: item.firstName?.S,
-  //       lastName: item.lastName?.S,
-  //       email: item.email?.S,
-  //       dob: item.dob?.S,
-  //       status: item.status?.S,
-  //     };
-  //     // Log extracted user data
-  //     this.logger.debug('Extracted User:', JSON.stringify(user));
-
-  //     if (
-  //       !user.id ||
-  //       !user.firstName ||
-  //       !user.lastName ||
-  //       !user.email ||
-  //       !user.dob ||
-  //       !user.status
-  //     ) {
-  //       throw new BadRequestException('User data is incomplete.');
-  //     }
-  //     return user;
-  //   } catch (error) {
-  //     this.logger.log('Error while retrieving the user through id', error);
-  //     throw new BadRequestException('Failed to retrieve the user');
-  //   }
-  // }
   async checkUserStatus(checkUserStatusDto: { email: string; dob: string }) {
     try {
       const response = await axios.post(
