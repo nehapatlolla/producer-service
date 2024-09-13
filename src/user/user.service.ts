@@ -5,18 +5,11 @@ import { v4 as uuidv4 } from 'uuid';
 import { UpdateUserDto } from './dto/update-user.dto';
 import axios from 'axios';
 
-// import {
-//   DynamoDBClient,
-
-// } from '@aws-sdk/client-dynamodb';
-// import { UpdateUserDto } from './dto/update-user.dto';
-// import axios from 'axios';
-
 @Injectable()
 export class UserService {
-  private readonly consumerServiceUrl = 'http://localhost:3002';
+  private readonly consumerServiceUrl: string;
   private readonly sqsClient: SQSClient;
-  // private readonly dynamoDBClient: DynamoDBClient;
+
   private readonly queueUrl: string;
   private readonly tableName: string;
   private readonly IndexName: string;
@@ -29,6 +22,7 @@ export class UserService {
     this.queueUrl = process.env.SQS_QUEUE_URL;
     this.tableName = process.env.TABLE_NAME;
     this.IndexName = process.env.INDEX_NAME;
+    this.consumerServiceUrl = process.env.CONSUMR_SERVICE_URL;
     // this.dynamoDBClient = new DynamoDBClient({
     //   region: process.env.AWS_REGION,
     // });
