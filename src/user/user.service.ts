@@ -24,32 +24,52 @@ export class UserService {
   }
 
   async createUser(createUserDto: CreateUserDto) {
-    const id = uuidv4();
-    const messageBody = {
-      operation: 'create',
-      user: {
-        id,
-        firstName: createUserDto.firstName,
-        lastName: createUserDto.lastName,
-        email: createUserDto.email,
-        dob: createUserDto.dob,
-        status: createUserDto.status || 'created',
-      },
-    };
+    const { email, dob } = createUserDto;
+
+    // Validate input
+    if (!email || !dob) {
+      throw new BadRequestException(
+        'Email and date of birth must be provided.',
+      );
+    }
 
     try {
-      const command = new SendMessageCommand({
-        QueueUrl: this.queueUrl,
-        MessageBody: JSON.stringify(messageBody),
-      });
+      const existingUser = await this.checkUserStatus({ email, dob });
+      if (existingUser == 'Failed to check user status') {
+        const id = uuidv4();
+        const createdAt = new Date().toISOString();
+        const messageBody = {
+          operation: 'create',
+          user: {
+            id,
+            firstName: createUserDto.firstName,
+            lastName: createUserDto.lastName,
+            email: createUserDto.email,
+            dob: createUserDto.dob,
+            status: createUserDto.status || 'created',
+            createdAt,
+          },
+        };
 
-      await this.sqsClient.send(command);
-      this.logger.log('Message sent to SQS queue');
+        const command = new SendMessageCommand({
+          QueueUrl: this.queueUrl,
+          MessageBody: JSON.stringify(messageBody),
+        });
 
-      return { message: 'User creation request sent' };
+        await this.sqsClient.send(command);
+        this.logger.log('User creation request sent to SQS queue');
+
+        return { message: 'User creation request sent' };
+      } else {
+        this.logger.warn(`User with email ${email} already exists.`);
+        return { message: `User with email ${email} already exists.` };
+      }
     } catch (error) {
-      this.logger.error('Error sending message to SQS queue:', error);
-      throw new BadRequestException('Failed to send message to queue');
+      this.logger.error(
+        'Error sending user creation request to SQS queue:',
+        error,
+      );
+      throw new BadRequestException('Failed to send user creation request');
     }
   }
 
@@ -71,7 +91,7 @@ export class UserService {
       return { messgae: 'User update request sent' };
     } catch (error) {
       this.logger.error('Error sending message to SQS queue:', error);
-      throw new BadRequestException('Failed to send message to queue');
+      return `Error sending message to SQS queue`;
     }
   }
 
@@ -95,7 +115,7 @@ export class UserService {
       return response.data;
     } catch (error) {
       this.logger.error('Error checking user status:', error);
-      throw new BadRequestException('Failed to check user status');
+      return `Failed to check user status`;
     }
   }
 
@@ -106,10 +126,12 @@ export class UserService {
         `${this.consumerServiceUrl}/check-status/status`,
         checkUserStatusDto,
       );
-      return response.data;
+      if (response.data && response.data.id) {
+        return response.data; // User exists
+      }
     } catch (error) {
       this.logger.error('Error checking user status:', error);
-      throw new BadRequestException('Failed to check user status');
+      return `Failed to check user status`;
     }
   }
 }
