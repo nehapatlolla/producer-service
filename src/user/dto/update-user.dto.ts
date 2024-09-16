@@ -1,10 +1,4 @@
-import {
-  IsString,
-  IsEmail,
-  IsEnum,
-  IsOptional,
-  IsDateString,
-} from 'class-validator';
+import { IsString, IsEmail, IsOptional, IsDateString } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { UpdateDateColumn } from 'typeorm';
 
@@ -45,14 +39,14 @@ export class UpdateUserDto {
   @IsDateString()
   dob?: string;
 
-  @ApiProperty({
-    description: 'Status of the user',
-    example: 'updated',
-    required: false,
-  })
-  @IsEnum(['created', 'updated', 'blocked'])
-  @IsOptional()
-  status?: string;
+  // @ApiProperty({
+  //   description: 'Status of the user',
+  //   example: 'updated',
+  //   required: false,
+  // })
+  // @IsEnum(['created', 'updated', 'blocked'])
+  // @IsOptional()
+  // status?: string;
 
   @UpdateDateColumn()
   updatedAt: Date;

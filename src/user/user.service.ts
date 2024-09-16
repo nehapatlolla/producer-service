@@ -13,6 +13,7 @@ export class UserService {
   private readonly queueUrl: string;
 
   private readonly logger = new Logger(UserService.name);
+  producerServiceUrl: string;
 
   constructor() {
     this.sqsClient = new SQSClient({
@@ -21,6 +22,7 @@ export class UserService {
     this.queueUrl = process.env.SQS_QUEUE_URL;
 
     this.consumerServiceUrl = process.env.CONSUMR_SERVICE_URL;
+    this.producerServiceUrl = process.env.PRODUCER_SERVICE_URL;
   }
 
   async createUser(createUserDto: CreateUserDto) {
@@ -37,7 +39,8 @@ export class UserService {
       const existingUser = await this.checkUserStatus({ email, dob });
       if (existingUser == 'Failed to check user status') {
         const id = uuidv4();
-        const createdAt = new Date().toISOString();
+        // const createdAt = new Date().toISOString();
+        const status = 'created';
         const messageBody = {
           operation: 'create',
           user: {
@@ -46,8 +49,9 @@ export class UserService {
             lastName: createUserDto.lastName,
             email: createUserDto.email,
             dob: createUserDto.dob,
-            status: createUserDto.status || 'created',
-            createdAt,
+            status,
+            // status: createUserDto.status || 'created',
+            createdAt: new Date().toISOString(),
           },
         };
 
@@ -74,12 +78,16 @@ export class UserService {
   }
 
   async updateUser(id: string, UpdateUserDto: UpdateUserDto) {
+    const status = 'Updated';
     const messageBody = {
       operation: 'update',
       user: {
         id,
+        status,
         ...UpdateUserDto,
+        updatedAt: new Date().toISOString(),
       },
+      resultUrl: `${this.producerServiceUrl}/updates/result`,
     };
     try {
       const command = new SendMessageCommand({
@@ -114,8 +122,8 @@ export class UserService {
       );
       return response.data;
     } catch (error) {
-      this.logger.error('Error checking user status:', error);
-      return `Failed to check user status`;
+      this.logger.error('Error getting  user details:', error);
+      return `Failed to get user details`;
     }
   }
 
