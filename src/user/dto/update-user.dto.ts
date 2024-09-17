@@ -39,15 +39,6 @@ export class UpdateUserDto {
   @IsDateString()
   dob?: string;
 
-  // @ApiProperty({
-  //   description: 'Status of the user',
-  //   example: 'updated',
-  //   required: false,
-  // })
-  // @IsEnum(['created', 'updated', 'blocked'])
-  // @IsOptional()
-  // status?: string;
-
   @UpdateDateColumn()
   updatedAt: Date;
 }

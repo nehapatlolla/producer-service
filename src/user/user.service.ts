@@ -9,9 +9,7 @@ import axios, { AxiosResponse } from 'axios';
 export class UserService {
   private readonly consumerServiceUrl: string;
   private readonly sqsClient: SQSClient;
-
   private readonly queueUrl: string;
-
   private readonly logger = new Logger(UserService.name);
   producerServiceUrl: string;
 
@@ -20,7 +18,6 @@ export class UserService {
       region: process.env.AWS_REGION,
     });
     this.queueUrl = process.env.SQS_QUEUE_URL;
-
     this.consumerServiceUrl = process.env.CONSUMR_SERVICE_URL;
     this.producerServiceUrl = process.env.PRODUCER_SERVICE_URL;
   }
@@ -39,7 +36,7 @@ export class UserService {
       const existingUser = await this.checkUserStatus({ email, dob });
       if (existingUser == 'Failed to check user status') {
         const id = uuidv4();
-        // const createdAt = new Date().toISOString();
+
         const status = 'created';
         const messageBody = {
           operation: 'create',
@@ -50,7 +47,7 @@ export class UserService {
             email: createUserDto.email,
             dob: createUserDto.dob,
             status,
-            // status: createUserDto.status || 'created',
+
             createdAt: new Date().toISOString(),
           },
         };
