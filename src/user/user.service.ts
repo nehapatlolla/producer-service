@@ -1,4 +1,9 @@
-import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  BadRequestException,
+  Inject,
+} from '@nestjs/common';
 import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
 import { CreateUserDto } from './dto/create-user.dto';
 import { v4 as uuidv4 } from 'uuid';
@@ -9,11 +14,12 @@ import axios, { AxiosResponse } from 'axios';
 export class UserService {
   private readonly consumerServiceUrl: string;
   private readonly sqsClient: SQSClient;
-  private readonly queueUrl: string;
+  // private readonly queueUrl: string;
   private readonly logger = new Logger(UserService.name);
   producerServiceUrl: string;
+  static checkUserStatus: jest.Mock<any, any, any>;
 
-  constructor() {
+  constructor(@Inject('SQS_QUEUE_URL') private queueUrl: string) {
     this.sqsClient = new SQSClient({
       region: process.env.AWS_REGION,
     });
@@ -22,10 +28,67 @@ export class UserService {
     this.producerServiceUrl = process.env.PRODUCER_SERVICE_URL;
   }
 
+  // async createUser(createUserDto: CreateUserDto) {
+  //   const { email, dob } = createUserDto;
+
+  //   // Validate input
+  //   if (!email || !dob) {
+  //     throw new BadRequestException(
+  //       'Email and date of birth must be provided.',
+  //     );
+  //   }
+
+  //   try {
+  //     const existingUserStatus = await this.checkUserStatus({ email, dob });
+  //     console.log('Existing User Status:', existingUserStatus); // Log the status
+  //     if (existingUserStatus === 'Failed to check user status') {
+  //       const id = uuidv4();
+
+  //       const messageBody = {
+  //         operation: 'create',
+  //         user: {
+  //           id,
+  //           firstName: createUserDto.firstName,
+  //           lastName: createUserDto.lastName,
+  //           email: createUserDto.email,
+  //           dob: createUserDto.dob,
+  //           status: 'created',
+  //           createdAt: new Date().toISOString(),
+  //         },
+  //       };
+
+  //       const command = new SendMessageCommand({
+  //         QueueUrl: this.queueUrl,
+  //         MessageBody: JSON.stringify(messageBody),
+  //       });
+  //       // Log the queue URL for debugging
+  //       this.logger.log(`Sending message to SQS Queue: ${this.queueUrl}`);
+  //       // Debugging logs
+  //       console.log('Queue URL:', this.queueUrl); // Log the Queue URL
+  //       console.log('Message Body:', JSON.stringify(messageBody)); // Log the message body
+  //       await this.sqsClient.send(command);
+  //       this.logger.log('User creation request sent to SQS queue');
+
+  //       return { message: 'User creation request sent' };
+  //     } else if (existingUserStatus) {
+  //       this.logger.warn(`User with email ${email} already exists.`);
+  //       return { message: `User with email ${email} already exists.` };
+  //     }
+  //   } catch (error) {
+  //     this.logger.error(
+  //       'Error sending user creation request to SQS queue:',
+  //       error,
+  //     );
+  //     throw new BadRequestException('Failed to send user creation request');
+  //   }
+  // }
+
   async createUser(createUserDto: CreateUserDto) {
     const { email, dob } = createUserDto;
 
-    // Validate input
+    // Log the input
+    this.logger.log(`Creating user with email: ${email} and dob: ${dob}`);
+
     if (!email || !dob) {
       throw new BadRequestException(
         'Email and date of birth must be provided.',
@@ -33,11 +96,13 @@ export class UserService {
     }
 
     try {
-      const existingUser = await this.checkUserStatus({ email, dob });
-      if (existingUser == 'Failed to check user status') {
+      const existingUserStatus = await this.checkUserStatus({ email, dob });
+      this.logger.log(`Existing User Status: ${existingUserStatus}`);
+
+      if (existingUserStatus === null) {
+        // Ensure this matches your condition
         const id = uuidv4();
 
-        const status = 'created';
         const messageBody = {
           operation: 'create',
           user: {
@@ -46,8 +111,7 @@ export class UserService {
             lastName: createUserDto.lastName,
             email: createUserDto.email,
             dob: createUserDto.dob,
-            status,
-
+            status: 'created',
             createdAt: new Date().toISOString(),
           },
         };
@@ -57,6 +121,7 @@ export class UserService {
           MessageBody: JSON.stringify(messageBody),
         });
 
+        this.logger.log(`Sending message to SQS Queue: ${this.queueUrl}`);
         await this.sqsClient.send(command);
         this.logger.log('User creation request sent to SQS queue');
 
@@ -82,7 +147,7 @@ export class UserService {
         id,
         status,
         ...UpdateUserDto,
-        updatedAt: new Date().toISOString(),
+        // updatedAt: new Date().toISOString(),
       },
       resultUrl: `${this.producerServiceUrl}/updates/result`,
     };

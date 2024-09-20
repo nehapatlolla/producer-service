@@ -26,7 +26,7 @@ export class UserController {
       return await this.userService.createUser(createUserDto);
     } catch (error) {
       if (error instanceof BadRequestException) {
-        throw new HttpException(error.message, HttpStatus.BAD_REQUEST);
+        throw error; // Rethrow the original exception
       }
       throw new HttpException(
         'Internal server error',

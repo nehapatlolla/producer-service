@@ -1,6 +1,6 @@
 import { IsString, IsEmail, IsOptional, IsDateString } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { UpdateDateColumn } from 'typeorm';
+// import { UpdateDateColumn } from 'typeorm';
 
 export class UpdateUserDto {
   @ApiProperty({
@@ -39,6 +39,6 @@ export class UpdateUserDto {
   @IsDateString()
   dob?: string;
 
-  @UpdateDateColumn()
-  updatedAt: Date;
+  // @UpdateDateColumn()
+  // updatedAt: Date;
 }
