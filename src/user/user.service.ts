@@ -12,6 +12,9 @@ import axios, { AxiosResponse } from 'axios';
 
 @Injectable()
 export class UserService {
+  sendMessageUpdate() {
+    throw new Error('Method not implemented.');
+  }
   private readonly consumerServiceUrl: string;
   private readonly sqsClient: SQSClient;
   // private readonly queueUrl: string;
@@ -141,6 +144,14 @@ export class UserService {
 
   async updateUser(id: string, UpdateUserDto: UpdateUserDto) {
     const status = 'Updated';
+    const userStatus = await this.checkUserStatus({
+      email: UpdateUserDto.email,
+      dob: UpdateUserDto.dob,
+    });
+
+    if (userStatus && userStatus.status === 'blocked') {
+      throw new BadRequestException('User is blocked and cannot be updated.');
+    }
     const messageBody = {
       operation: 'update',
       user: {

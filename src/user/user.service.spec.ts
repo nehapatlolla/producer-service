@@ -1,7 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { UserService } from './user.service';
+import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
+import { CreateUserDto } from './dto/create-user.dto';
+
+import axios, { AxiosResponse } from 'axios';
+import { BadRequestException } from '@nestjs/common';
 import { UpdateUserDto } from './dto/update-user.dto';
 
+jest.mock('@aws-sdk/client-sqs');
+jest.mock('axios');
 const mockUserDTO = {
   id: 'id238ujndm284ye78wdu82',
   firstName: 'John',
@@ -10,156 +17,187 @@ const mockUserDTO = {
   dob: '1990-01-01',
   status: 'active',
 };
-const mockUpdateUserDTO: UpdateUserDto = {
-  firstName: 'Jane',
-  lastName: 'Smith',
-  email: 'jane.smith@example.com',
-};
+
 describe('UserService', () => {
-  let userService;
-  const mockUserService = {
-    getUserDetailsById: jest.fn(),
-    checkUserStatus: jest.fn(),
-    createUser: jest.fn(),
-    updateUser: jest.fn(),
-  };
+  let userService: UserService;
+  let mockSqsClient: SQSClient;
+  let mockConsumerServiceUrl: string;
 
   beforeEach(async () => {
+    mockSqsClient = new SQSClient({ region: process.env.AWS_REGION });
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UserService,
         {
-          provide: UserService,
-          useValue: mockUserService,
-        },
-        {
           provide: 'SQS_QUEUE_URL',
-          useValue: 'mockQueueUrl',
+          useValue: process.env.SQS_QUEUE_URL,
         },
         {
-          provide: 'sqsClient',
+          provide: SQSClient,
+          useValue: mockSqsClient,
+        },
+        {
+          provide: SQSClient,
           useValue: {
-            getUserDetailsById: jest.fn(),
-            checkUserStatus: jest.fn(),
-            createUser: jest.fn(),
+            send: jest.fn().mockResolvedValue({}),
           },
         },
+        {
+          provide: 'CONSUMER_SERVICE_URL',
+          useValue: process.env.CONSUMR_SERVICE_URL,
+        },
       ],
-    }).compile();
+    })
+      .overrideProvider('consumerServiceUrl')
+      .useValue(mockConsumerServiceUrl)
+      .compile();
 
     userService = module.get<UserService>(UserService);
   });
-
-  it('should be defined', () => {
-    expect(userService).toBeDefined();
-  });
-
   describe('createUser', () => {
-    it('should create a user and return the created user', async () => {
-      userService.checkUserStatus.mockResolvedValue(
-        'Failed to check user status',
-      ); // User does not exist
-      userService.createUser.mockResolvedValue('user created');
+    it('should send a message to SQS to create a user', async () => {
+      const createUserDto: CreateUserDto = {
+        firstName: 'John',
+        lastName: 'Doe',
+        email: 'john.doe@example.com',
+        dob: '1990-01-01',
+      };
 
-      const result = await userService.createUser(mockUserDTO);
+      const result = await userService.createUser(createUserDto);
 
-      expect(result).toEqual('user created');
-      expect(userService.createUser).toHaveBeenCalledWith(mockUserDTO);
+      expect(result).toEqual({ message: 'User creation request sent' });
+      expect(mockSqsClient.send).toHaveBeenCalled();
+      expect(mockSqsClient.send).toHaveBeenCalledWith(
+        expect.any(SendMessageCommand),
+      );
     });
   });
-  // it('should warn that the user already exist', async () => {
-  //   userService.checkUserStatus.mockResolvedValue('User Exists');
-  //   userService.createUser.mockResolvedValue('User Exists');
-
-  //   const result = await userService.createUser(mockUserDTO);
-
-  //   expect(result).toEqual('User Exists');
-  //   expect(userService.createUser).not.toHaveBeenCalled();
-  // });
   describe('updateUser', () => {
-    it('should update user details and return the updated user', async () => {
-      mockUserService.updateUser.mockResolvedValue('user updated');
+    it('should throw an error if the user is blocked', async () => {
+      const userId = 'id238ujndm284ye78wdu82';
+      const updateUserDto: UpdateUserDto = {
+        firstName: 'Jane',
+        lastName: 'Smith',
+        email: 'jane.smith@example.com',
+      };
+
+      // Mocking the response for checkUserStatus to return blocked status
+      jest
+        .spyOn(userService, 'checkUserStatus')
+        .mockResolvedValue({ status: 'blocked' });
+
+      await expect(
+        userService.updateUser(userId, updateUserDto),
+      ).rejects.toThrow(BadRequestException);
+      await expect(
+        userService.updateUser(userId, updateUserDto),
+      ).rejects.toThrow('User is blocked and cannot be updated.');
+    });
+    it('should send an update message to SQS', async () => {
+      const updateUserDto = { firstName: 'Jane', lastName: 'Smith' };
 
       const result = await userService.updateUser(
         mockUserDTO.id,
-        mockUpdateUserDTO,
+        updateUserDto,
       );
 
-      expect(result).toEqual('user updated');
-      expect(mockUserService.updateUser).toHaveBeenCalledWith(
-        mockUserDTO.id,
-        mockUpdateUserDTO,
-      );
-    });
-
-    it('should return an error if the user does not exist during update', async () => {
-      mockUserService.updateUser.mockResolvedValue(null);
-
-      const result = await userService.updateUser(
-        mockUserDTO.id,
-        mockUpdateUserDTO,
-      );
-
-      expect(result).toBeNull();
-      expect(mockUserService.updateUser).toHaveBeenCalledWith(
-        mockUserDTO.id,
-        mockUpdateUserDTO,
+      expect(result).toEqual({ messgae: 'User update request sent' });
+      expect(mockSqsClient.send).toHaveBeenCalled();
+      expect(mockSqsClient.send).toHaveBeenCalledWith(
+        expect.any(SendMessageCommand),
       );
     });
   });
-  describe('checkUserStatus', () => {
-    it('should return "User Exists" if user is found', async () => {
-      mockUserService.checkUserStatus.mockResolvedValue('User Exists');
 
-      const result = await userService.checkUserStatus({
-        email: mockUserDTO.email,
-        dob: mockUserDTO.dob,
-      });
+  describe('blockUser', () => {
+    it('should successfully block a user and return the response data', async () => {
+      const userId = 'userId123';
+      const mockResponse = { data: { message: 'User blocked successfully' } };
 
-      expect(result).toEqual('User Exists');
-      expect(mockUserService.checkUserStatus).toHaveBeenCalledWith({
-        email: mockUserDTO.email,
-        dob: mockUserDTO.dob,
-      });
+      (axios.post as jest.Mock).mockResolvedValue(mockResponse);
+
+      const result = await userService.blockUser(userId);
+
+      expect(result).toEqual(mockResponse.data);
+      expect(axios.post).toHaveBeenCalledWith(
+        `${mockConsumerServiceUrl}/check-status/block/${userId}`,
+      );
     });
 
-    it('should return null if user is not found', async () => {
-      mockUserService.checkUserStatus.mockResolvedValue(null);
+    it('should throw an error when blocking a user fails', async () => {
+      const userId = 'userId123';
+      const mockError = new Error('Network error');
 
-      const result = await userService.checkUserStatus({
-        email: mockUserDTO.email,
-        dob: mockUserDTO.dob,
-      });
+      (axios.post as jest.Mock).mockRejectedValue(mockError);
 
-      expect(result).toBeNull();
-      expect(mockUserService.checkUserStatus).toHaveBeenCalledWith({
-        email: mockUserDTO.email,
-        dob: mockUserDTO.dob,
-      });
+      await expect(userService.blockUser(userId)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
-
   describe('getUserDetailsById', () => {
-    it('should return user details if user is found', async () => {
-      mockUserService.getUserDetailsById.mockResolvedValue(mockUserDTO);
+    it('should return user details by ID', async () => {
+      const userId = 'id238ujndm284ye78wdu82';
+      const mockResponse = {
+        data: { id: userId, firstName: 'John', lastName: 'Doe' },
+      };
 
-      const result = await userService.getUserDetailsById(mockUserDTO.id);
+      (axios.get as jest.Mock).mockResolvedValue(mockResponse);
 
-      expect(result).toEqual(mockUserDTO);
-      expect(mockUserService.getUserDetailsById).toHaveBeenCalledWith(
-        mockUserDTO.id,
+      const result = await userService.getUserDetailsById(userId);
+
+      expect(result).toEqual(mockResponse.data);
+      expect(axios.get).toHaveBeenCalledWith(
+        `${mockConsumerServiceUrl}/check-status/details/${userId}`,
       );
     });
 
-    it('should return null if user is not found', async () => {
-      mockUserService.getUserDetailsById.mockResolvedValue(null);
+    it('should return an error message if getting user details fails', async () => {
+      const userId = 'id238ujndm284ye78wdu82';
+      const mockError = new Error('Network error');
 
-      const result = await userService.getUserDetailsById(mockUserDTO.id);
+      (axios.get as jest.Mock).mockRejectedValue(mockError);
 
-      expect(result).toBeNull();
-      expect(mockUserService.getUserDetailsById).toHaveBeenCalledWith(
-        mockUserDTO.id,
+      const result = await userService.getUserDetailsById(userId);
+
+      expect(result).toEqual('Failed to get user details');
+    });
+  });
+
+  describe('checkUserStatus', () => {
+    it('should return user status if user exists', async () => {
+      const checkUserStatusDto = {
+        email: 'john.doe@example.com',
+        dob: '1990-01-01',
+      };
+      const mockResponse: AxiosResponse = {
+        data: { id: 'userId123', status: 'active' },
+      } as AxiosResponse;
+
+      (axios.post as jest.Mock).mockResolvedValue(mockResponse);
+
+      const result = await userService.checkUserStatus(checkUserStatusDto);
+
+      expect(result).toEqual(mockResponse.data);
+      expect(axios.post).toHaveBeenCalledWith(
+        `${mockConsumerServiceUrl}/check-status/status`,
+        checkUserStatusDto,
       );
+    });
+
+    it('should return an error message if checking user status fails', async () => {
+      const checkUserStatusDto = {
+        email: 'john.doe@example.com',
+        dob: '1990-01-01',
+      };
+      const mockError = new Error('Network error');
+
+      (axios.post as jest.Mock).mockRejectedValue(mockError);
+
+      const result = await userService.checkUserStatus(checkUserStatusDto);
+
+      expect(result).toEqual('Failed to check user status');
     });
   });
 });
