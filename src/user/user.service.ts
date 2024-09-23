@@ -99,7 +99,7 @@ export class UserService {
       const existingUserStatus = await this.checkUserStatus({ email, dob });
       this.logger.log(`Existing User Status: ${existingUserStatus}`);
 
-      if (existingUserStatus === null) {
+      if (existingUserStatus == 'Failed to check user status') {
         // Ensure this matches your condition
         const id = uuidv4();
 

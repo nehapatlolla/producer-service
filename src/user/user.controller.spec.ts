@@ -1,17 +1,32 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { UserController } from './user.controller';
 import { UserService } from './user.service';
-import { CreateUserDto } from './dto/create-user.dto';
+
+const mockUserDTO = {
+  id: 'id238ujndm284ye78wdu82',
+  firstName: 'John',
+  lastName: 'Doe',
+  email: 'john.doe@example.com',
+  dob: '1990-01-01',
+  status: 'active',
+};
+
+// const mockUpdateUserDTO: UpdateUserDto = {
+//   firstName: 'Jane',
+//   lastName: 'Smith',
+//   email: 'jane.smith@example.com',
+// };
 
 describe('UserController', () => {
   let userController: UserController;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  let userService: UserService;
 
   const mockUserService = {
     createUser: jest.fn(),
     updateUser: jest.fn(),
     checkUserStatus: jest.fn(),
     getUserDetailsById: jest.fn(),
-    blockUser: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -26,102 +41,118 @@ describe('UserController', () => {
     }).compile();
 
     userController = module.get<UserController>(UserController);
+    userService = module.get<UserService>(UserService);
   });
 
-  it('should create a user successfully', async () => {
-    const createUserDto: CreateUserDto = {
-      firstName: 'John',
-      lastName: 'Doe',
-      email: 'john.doe@example.com',
-      dob: '1990-01-01',
-    };
+  it('should be defined', () => {
+    expect(userController).toBeDefined();
+  });
 
-    mockUserService.createUser.mockResolvedValue({
-      message: 'User creation request sent',
+  describe('createUser', () => {
+    it('should create a user and return the result', async () => {
+      mockUserService.createUser.mockResolvedValue('user created');
+
+      const result = await userController.createUser(mockUserDTO);
+
+      expect(result).toEqual('user created');
+      expect(mockUserService.createUser).toHaveBeenCalledWith(mockUserDTO);
     });
 
-    const result = await userController.createUser(createUserDto);
-    expect(result).toEqual({ message: 'User creation request sent' });
-    expect(mockUserService.createUser).toHaveBeenCalledWith(createUserDto);
+    it('should return a message if the user already exists', async () => {
+      mockUserService.createUser.mockResolvedValue('User Exists');
+
+      const result = await userController.createUser(mockUserDTO);
+
+      expect(result).toEqual('User Exists');
+      expect(mockUserService.createUser).toHaveBeenCalledWith(mockUserDTO);
+    });
   });
 
-  // it('should handle BadRequestException when creating a user', async () => {
-  //   const createUserDto: CreateUserDto = {
-  //     firstName: 'John',
-  //     lastName: 'Doe',
-  //     email: 'john.doe@example.com',
-  //     dob: '1990-01-01',
-  //   };
+  // describe('updateUser', () => {
+  // it('should update user details and return the result', async () => {
+  //   mockUserService.updateUser.mockResolvedValue('user updated');
 
-  //   mockUserService.createUser.mockRejectedValue(
-  //     new BadRequestException('Error message'),
+  //   const result = await userController.updateUser(
+  //     mockUserDTO.id,
+  //     mockUpdateUserDTO,
   //   );
 
-  //   await expect(userController.createUser(createUserDto)).rejects.toThrow(
-  //     BadRequestException,
+  //   expect(result).toEqual('user updated');
+  //   expect(mockUserService.updateUser).toHaveBeenCalledWith(
+  //     mockUserDTO.id,
+  //     mockUpdateUserDTO,
   //   );
   // });
 
-  // it('should update a user successfully', async () => {
-  //   const id = 'some-user-id';
-  //   const updateUserDto: UpdateUserDto = {
-  //     firstName: 'Jane',
-  //     lastName: 'Doe',
-  //   };
+  //   it('should return null if the user does not exist during update', async () => {
+  //     mockUserService.updateUser.mockResolvedValue(null);
 
-  //   mockUserService.updateUser.mockResolvedValue({
-  //     message: 'User update request sent',
+  //     const result = await userController.updateUser(
+  //       mockUserDTO.id,
+  //       mockUpdateUserDTO,
+  //     );
+
+  //     expect(result).toBeNull();
+  //     expect(mockUserService.updateUser).toHaveBeenCalledWith(
+  //       mockUserDTO.id,
+  //       mockUpdateUserDTO,
+  //     );
   //   });
-
-  //   await userController.updateUser(id, updateUserDto);
-  //   expect(mockUserService.updateUser).toHaveBeenCalledWith(id, updateUserDto);
   // });
 
-  // it('should check user status successfully', async () => {
-  //   const checkUserStatusDto = {
-  //     email: 'john.doe@example.com',
-  //     dob: '1990-01-01',
-  //   };
-  //   mockUserService.checkUserStatus.mockResolvedValue({ id: 'some-user-id' });
+  describe('checkUserStatus', () => {
+    it('should return "User Exists" if user is found', async () => {
+      mockUserService.checkUserStatus.mockResolvedValue('User Exists');
 
-  //   const result = await userController.checkUserStatus(checkUserStatusDto);
-  //   expect(result).toEqual({ id: 'some-user-id' });
-  //   expect(mockUserService.checkUserStatus).toHaveBeenCalledWith(
-  //     checkUserStatusDto,
-  //   );
-  // });
+      const result = await userController.checkUserStatus({
+        email: mockUserDTO.email,
+        dob: mockUserDTO.dob,
+      });
 
-  // it('should get user details by ID successfully', async () => {
-  //   const userId = 'some-user-id';
-  //   mockUserService.getUserDetailsById.mockResolvedValue({
-  //     id: userId,
-  //     name: 'John Doe',
-  //   });
+      expect(result).toEqual('User Exists');
+      expect(mockUserService.checkUserStatus).toHaveBeenCalledWith({
+        email: mockUserDTO.email,
+        dob: mockUserDTO.dob,
+      });
+    });
 
-  //   const result = await userController.getgetUserDetailsById(userId);
-  //   expect(result).toEqual({ id: userId, name: 'John Doe' });
-  //   expect(mockUserService.getUserDetailsById).toHaveBeenCalledWith(userId);
-  // });
+    it('should return null if user is not found', async () => {
+      mockUserService.checkUserStatus.mockResolvedValue(null);
 
-  // it('should block a user successfully', async () => {
-  //   const userId = 'some-user-id';
-  //   mockUserService.blockUser.mockResolvedValue({
-  //     message: 'User successfully blocked',
-  //   });
+      const result = await userController.checkUserStatus({
+        email: mockUserDTO.email,
+        dob: mockUserDTO.dob,
+      });
 
-  //   const result = await userController.blockUser(userId);
-  //   expect(result).toEqual({ message: 'User successfully blocked' });
-  //   expect(mockUserService.blockUser).toHaveBeenCalledWith(userId);
-  // });
+      expect(result).toBeNull();
+      expect(mockUserService.checkUserStatus).toHaveBeenCalledWith({
+        email: mockUserDTO.email,
+        dob: mockUserDTO.dob,
+      });
+    });
+  });
 
-  // it('should handle errors when blocking a user', async () => {
-  //   const userId = 'some-user-id';
-  //   mockUserService.blockUser.mockRejectedValue(
-  //     new BadRequestException('Error blocking user'),
-  //   );
+  describe('getUserDetailsById', () => {
+    it('should return user details if user is found', async () => {
+      mockUserService.getUserDetailsById.mockResolvedValue(mockUserDTO);
 
-  //   await expect(userController.blockUser(userId)).rejects.toThrow(
-  //     BadRequestException,
-  //   );
-  // });
+      const result = await userController.getgetUserDetailsById(mockUserDTO.id);
+
+      expect(result).toEqual(mockUserDTO);
+      expect(mockUserService.getUserDetailsById).toHaveBeenCalledWith(
+        mockUserDTO.id,
+      );
+    });
+
+    it('should return null if user is not found', async () => {
+      mockUserService.getUserDetailsById.mockResolvedValue(null);
+
+      const result = await userController.getgetUserDetailsById(mockUserDTO.id);
+
+      expect(result).toBeNull();
+      expect(mockUserService.getUserDetailsById).toHaveBeenCalledWith(
+        mockUserDTO.id,
+      );
+    });
+  });
 });
