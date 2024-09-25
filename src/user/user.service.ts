@@ -4,24 +4,26 @@ import {
   BadRequestException,
   Inject,
 } from '@nestjs/common';
-import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
+import { SQSClient } from '@aws-sdk/client-sqs';
 import { CreateUserDto } from './dto/create-user.dto';
 import { v4 as uuidv4 } from 'uuid';
 import { UpdateUserDto } from './dto/update-user.dto';
 import axios, { AxiosResponse } from 'axios';
+import { SqsService } from './sqs.service';
 
 @Injectable()
 export class UserService {
-  sendMessageUpdate() {
-    throw new Error('Method not implemented.');
-  }
   private readonly consumerServiceUrl: string;
   private readonly sqsClient: SQSClient;
+
   private readonly logger = new Logger(UserService.name);
   producerServiceUrl: string;
   static checkUserStatus: jest.Mock<any, any, any>;
 
-  constructor(@Inject('SQS_QUEUE_URL') private queueUrl: string) {
+  constructor(
+    @Inject('SQS_QUEUE_URL') private queueUrl: string,
+    private readonly sqsService: SqsService,
+  ) {
     this.sqsClient = new SQSClient({
       region: process.env.AWS_REGION,
     });
@@ -45,7 +47,7 @@ export class UserService {
       const existingUserStatus = await this.checkUserStatus({ email, dob });
       this.logger.log(`Existing User Status: ${existingUserStatus}`);
 
-      if (existingUserStatus == 'Failed to check user status') {
+      if (existingUserStatus == false) {
         const id = uuidv4();
 
         const messageBody = {
@@ -61,16 +63,9 @@ export class UserService {
           },
         };
 
-        const command = new SendMessageCommand({
-          QueueUrl: this.queueUrl,
-          MessageBody: JSON.stringify(messageBody),
-        });
-
-        this.logger.log(`Sending message to SQS Queue: ${this.queueUrl}`);
-        await this.sqsClient.send(command);
+        const result = await this.sqsService.sendMessage(messageBody);
         this.logger.log('User creation request sent to SQS queue');
-
-        return { message: 'User creation request sent' };
+        return result;
       } else {
         this.logger.warn(`User with email ${email} already exists.`);
         return { message: `User with email ${email} already exists.` };
@@ -104,23 +99,19 @@ export class UserService {
       resultUrl: `${this.producerServiceUrl}/updates/result`,
     };
     try {
-      const command = new SendMessageCommand({
-        QueueUrl: this.queueUrl,
-        MessageBody: JSON.stringify(messageBody),
-      });
-      await this.sqsClient.send(command);
-      this.logger.log('Update Message sent to SQS');
-      return { messgae: 'User update request sent' };
+      await this.sqsService.sendMessage(messageBody);
+      this.logger.log('User update request sent to SQS queue');
+      return true;
     } catch (error) {
       this.logger.error('Error sending message to SQS queue:', error);
-      return `Error sending message to SQS queue`;
+      return false;
     }
   }
 
   async blockUser(id: string): Promise<AxiosResponse<any>> {
     try {
       const response = await axios.post(
-        `${this.consumerServiceUrl}/check-status/block/${id}`,
+        `${this.consumerServiceUrl}/consumer-service/block-user/${id}`,
       );
       return response.data;
     } catch (error) {
@@ -132,12 +123,12 @@ export class UserService {
   async getUserDetailsById(userId: string) {
     try {
       const response = await axios.get(
-        `${this.consumerServiceUrl}/check-status/details/${userId}`,
+        `${this.consumerServiceUrl}/consumer-service/get-user-details/${userId}`,
       );
       return response.data;
     } catch (error) {
       this.logger.error('Error getting  user details:', error);
-      return `Failed to get user details`;
+      return false;
     }
   }
 
@@ -145,15 +136,15 @@ export class UserService {
     try {
       const response = await axios.post(
         // I am making a HTTP request to the consumer service
-        `${this.consumerServiceUrl}/check-status/status`,
+        `${this.consumerServiceUrl}/consumer-service/status`,
         checkUserStatusDto,
       );
       if (response.data && response.data.id) {
-        return response.data; // User exists
+        return response.data;
       }
     } catch (error) {
       this.logger.error('Error checking user status:', error);
-      return `Failed to check user status`;
+      return false;
     }
   }
 }
