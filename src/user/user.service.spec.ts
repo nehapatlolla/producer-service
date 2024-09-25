@@ -80,6 +80,7 @@ describe('UserService', () => {
         firstName: 'Jane',
         lastName: 'Smith',
         email: 'jane.smith@example.com',
+        dob: '2009-09-09',
       };
 
       // Mocking the response for checkUserStatus to return blocked status
@@ -95,7 +96,12 @@ describe('UserService', () => {
       ).rejects.toThrow('User is blocked and cannot be updated.');
     });
     it('should send an update message to SQS', async () => {
-      const updateUserDto = { firstName: 'Jane', lastName: 'Smith' };
+      const updateUserDto = {
+        firstName: 'Jane',
+        lastName: 'Smith',
+        email: 'jane.smith@example.com',
+        dob: '2009-09-09',
+      };
 
       const result = await userService.updateUser(
         mockUserDTO.id,
@@ -130,6 +136,7 @@ describe('UserService', () => {
       const mockError = new Error('Network error');
 
       (axios.post as jest.Mock).mockRejectedValue(mockError);
+      // axios.post = jest.fn().mockRejectedValue(mockError);
 
       await expect(userService.blockUser(userId)).rejects.toThrow(
         BadRequestException,

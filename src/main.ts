@@ -11,7 +11,7 @@ async function bootstrap() {
     .setTitle('SQS')
     .setDescription('SQS')
     .setVersion('1.0')
-    .addTag('SQS operations') // Add tags to group routes in Swagger UI
+    .addTag('SQS operations')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

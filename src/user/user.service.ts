@@ -17,7 +17,6 @@ export class UserService {
   }
   private readonly consumerServiceUrl: string;
   private readonly sqsClient: SQSClient;
-  // private readonly queueUrl: string;
   private readonly logger = new Logger(UserService.name);
   producerServiceUrl: string;
   static checkUserStatus: jest.Mock<any, any, any>;
@@ -101,7 +100,6 @@ export class UserService {
         id,
         status,
         ...UpdateUserDto,
-        // updatedAt: new Date().toISOString(),
       },
       resultUrl: `${this.producerServiceUrl}/updates/result`,
     };
