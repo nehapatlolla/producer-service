@@ -32,3 +32,29 @@ aws dynamodb update-table \
 }
 }
 }]'
+
+## creation
+
+Producer
+
+1. Check whether the user exists previously- if exists say user already exists
+2. check whether all the deatils which are used to create the user are provided- if not say provide the proper details
+3. user creation req message should be sent to queue- create req
+4. After the user is created consumer should return the message that it is created in db to the producer - user created in db
+
+Consumer
+
+1. poll the create message from the queue
+2. create the user in dynamodb
+3. Send the message to the producer that user is created
+
+## updation
+
+Producer
+
+1. Check whether the user exist
+2. check whether the user is blocked before
+3. send the updation req to the sqs queue
+4. after the user is updated recieve the reponse from the consumer
+
+## Testing

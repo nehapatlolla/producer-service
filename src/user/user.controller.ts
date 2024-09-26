@@ -21,12 +21,20 @@ export class UserController {
   constructor(private readonly userService: UserService) {}
 
   @Post('create-User')
+  @ApiResponse({
+    status: 201,
+    description: 'User successfully created.',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request. Validation failed.',
+  })
   async createUser(@Body() createUserDto: CreateUserDto) {
     try {
       return await this.userService.createUser(createUserDto);
     } catch (error) {
       if (error instanceof BadRequestException) {
-        throw error; // Rethrow the original exception
+        throw error;
       }
       throw new HttpException(
         'Internal server error',
@@ -35,7 +43,7 @@ export class UserController {
     }
   }
 
-  @Put(':id')
+  @Put('user-details/:id')
   @ApiOperation({ summary: 'Update user details' })
   @ApiResponse({
     status: 200,
@@ -55,7 +63,7 @@ export class UserController {
     await this.userService.updateUser(id, UpdateUserDto);
   }
 
-  @Post('check-status')
+  @Post('check-user-status')
   async checkUserStatus(@Body() checkUserStatusDto: CheckUserStatusDto) {
     try {
       const result = await this.userService.checkUserStatus(checkUserStatusDto);
@@ -65,13 +73,13 @@ export class UserController {
     }
   }
 
-  @Get(':id')
-  async getgetUserDetailsById(@Param('id') id: string) {
+  @Get('get-user-details/:id')
+  async getUserDetailsById(@Param('id') id: string) {
     const result = await this.userService.getUserDetailsById(id);
     return result;
   }
 
-  @Post('block/:id')
+  @Post('block-user/:id')
   @ApiOperation({ summary: 'Block a user by ID (Admin only)' })
   @ApiResponse({
     status: 200,

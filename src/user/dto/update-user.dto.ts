@@ -1,6 +1,5 @@
-import { IsString, IsEmail, IsOptional, IsDateString } from 'class-validator';
+import { IsString, IsEmail, IsDateString } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-// import { UpdateDateColumn } from 'typeorm';
 
 export class UpdateUserDto {
   @ApiProperty({
@@ -9,8 +8,7 @@ export class UpdateUserDto {
     required: false,
   })
   @IsString()
-  @IsOptional()
-  firstName?: string;
+  firstName: string;
 
   @ApiProperty({
     description: 'Last name of the user',
@@ -18,8 +16,7 @@ export class UpdateUserDto {
     required: false,
   })
   @IsString()
-  @IsOptional()
-  lastName?: string;
+  lastName: string;
 
   @ApiProperty({
     description: 'Email of the user',
@@ -27,18 +24,13 @@ export class UpdateUserDto {
     required: false,
   })
   @IsEmail()
-  @IsOptional()
-  email?: string;
+  email: string;
 
   @ApiProperty({
     description: 'Date of birth of the user',
     example: '1990-01-01',
     required: false,
   })
-  @IsOptional()
   @IsDateString()
-  dob?: string;
-
-  // @UpdateDateColumn()
-  // updatedAt: Date;
+  dob: string;
 }
